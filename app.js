@@ -4,8 +4,6 @@
    ============================================================ */
 
 // ======================== Firebase Configuration ========================
-// ⚠️ للنشر على GitHub: انقل هذه القيم إلى ملف firebase-config.js منفصل
-// أو استخدم متغيرات البيئة مع Firebase Hosting
 const firebaseConfig = {
   apiKey:            "AIzaSyBOQ1K6djn81iOZ2R251k1Ky_kCFUGdn9Y",
   authDomain:        "car-inovi.firebaseapp.com",
@@ -16,14 +14,43 @@ const firebaseConfig = {
   appId:             "1:396152886628:web:fd55e20311231137af9671"
 };
 
-let db;
-try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.database();
-} catch(e) {
-  console.error("Firebase init error:", e);
-  alert("❌ خطأ في الاتصال بقاعدة البيانات. تحقق من إعدادات Firebase.");
+let db = null;
+
+// ينتظر تحميل Firebase من CDN ثم يهيّئ التطبيق
+function waitForFirebase(attempt) {
+  if (typeof firebase !== "undefined") {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+      db.ref(".info/connected").on("value", snap => {
+        setStatus(snap.val() ? "ok" : "warn", snap.val() ? "متصل بقاعدة البيانات" : "غير متصل — يُعيد الاتصال...");
+      });
+    } catch(e) {
+      console.error("Firebase init error:", e);
+      showFirebaseError("فشل تهيئة Firebase: " + e.message);
+    }
+  } else if (attempt < 40) {
+    // انتظر 250ms وحاول مجدداً (حد أقصى 10 ثوانٍ)
+    setTimeout(() => waitForFirebase(attempt + 1), 250);
+  } else {
+    showFirebaseError("لم يتم تحميل Firebase بعد 10 ثوانٍ. تحقق من اتصالك بالإنترنت.");
+  }
 }
+
+function showFirebaseError(msg) {
+  document.getElementById("login-screen").innerHTML = `
+    <div style="text-align:center;padding:40px;max-width:420px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 10px 40px rgba(0,0,0,.2)">
+      <div style="font-size:3rem;margin-bottom:12px">🔌</div>
+      <h2 style="color:#dc2626;margin-bottom:8px">خطأ في الاتصال</h2>
+      <p style="color:#64748b;font-size:.85rem;line-height:1.6;margin-bottom:16px">${msg}</p>
+      <p style="color:#94a3b8;font-size:.78rem;margin-bottom:16px">تأكد من اتصالك بالإنترنت ثم أعد تحميل الصفحة</p>
+      <button onclick="location.reload()" style="padding:10px 24px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer">🔄 إعادة التحميل</button>
+    </div>
+  `;
+  document.getElementById("login-screen").style.display = "flex";
+}
+
+window.addEventListener("load", () => waitForFirebase(0));
 
 // ======================== Global State ========================
 let SYS = {
@@ -41,6 +68,10 @@ let liveListener = null;
 
 // ======================== Login ========================
 function doLogin() {
+  if (!db) {
+    alert("⏳ جاري الاتصال بقاعدة البيانات، انتظر لحظة ثم أعد المحاولة...");
+    return;
+  }
   const user   = document.getElementById("login-user").value.trim();
   const pass   = document.getElementById("login-pass").value;
   const errEl  = document.getElementById("login-error");
