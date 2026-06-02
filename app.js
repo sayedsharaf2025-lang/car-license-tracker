@@ -5,13 +5,13 @@
 
 // ======================== Firebase Configuration ========================
 const firebaseConfig = {
-  apiKey:            "AIzaSyBOQ1K6djn81iOZ2R251k1Ky_kCFUGdn9Y",
-  authDomain:        "car-inovi.firebaseapp.com",
-  databaseURL:       "https://car-inovi-default-rtdb.firebaseio.com",
-  projectId:         "car-inovi",
-  storageBucket:     "car-inovi.firebasestorage.app",
-  messagingSenderId: "396152886628",
-  appId:             "1:396152886628:web:fd55e20311231137af9671"
+  apiKey:            "AIzaSyBiRE-Zj6GKOOwe4IAdEPblfk40kTi8jxU",
+  authDomain:        "car-traffic-9828b.firebaseapp.com",
+  databaseURL:       "https://car-traffic-9828b-default-rtdb.firebaseio.com",
+  projectId:         "car-traffic-9828b",
+  storageBucket:     "car-traffic-9828b.firebasestorage.app",
+  messagingSenderId: "554924112638",
+  appId:             "1:554924112638:web:12ab897a31c579782083af"
 };
 
 let db = null;
