@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة الأسطول — البنا جروب</title>
+  <meta name="description" content="نظام إدارة الأسطول الخاص بشركة البنا جروب — تتبع السيارات والتراخيص والمخالفات والمشرفين والفواتير">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ======================== شاشة تسجيل الدخول ======================== -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🚛</div>
+    <h2>نظام إدارة الأسطول</h2>
+    <p>شركة البنا جروب — أدخل بيانات الدخول</p>
+    <input type="text" id="login-user" placeholder="اسم المستخدم" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    <input type="password" id="login-pass" placeholder="كلمة المرور" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button id="login-btn" onclick="doLogin()">تسجيل الدخول</button>
+    <div class="login-error" id="login-error"></div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:.72rem;color:#94a3b8;line-height:1.8">
+      <strong style="color:#64748b">بيانات الدخول:</strong><br>
+      <span>مدير النظام: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">admin</code></span><br>
+      <span>مدير الحركة: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">traffic</code></span><br>
+      <span>المدير المالي: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">finance</code></span><br>
+      <span>المشرف العام: <code style="background:#f1f5f9;padding:1px 5px;border-radius:4px">manager</code></span>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== التطبيق الرئيسي ======================== -->
+<div class="app" id="app" style="display:none">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">🚛</div>
+      <span>إدارة الأسطول</span>
+    </div>
+    <nav class="nav" id="main-nav"></nav>
+    <div class="user-info">
+      <span class="user-name" id="display-user"></span>
+      <button class="logout-btn" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ===== Dashboard ===== -->
+    <section class="section active" id="sec-dashboard">
+      <div class="pg-head">
+        <div><div class="pg-title">لوحة <em>التحكم</em></div><div class="pg-sub">نظرة عامة على النظام</div></div>
+        <button class="btn btn-outline btn-sm" onclick="loadAll()"><i class="fa-solid fa-sync"></i> تحديث</button>
+      </div>
+      <div class="stats-row" id="dash-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:.75rem;font-weight:700;color:#64748b;margin-bottom:6px;padding:0 4px">⚡ آخر المخالفات</div>
+          <div class="tbl-wrap">
+            <table><thead><tr><th>التاريخ</th><th>السيارة</th><th>السائق</th><th>المبلغ</th></tr></thead>
+            <tbody id="dash-vios-tbl"></tbody></table>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.75rem;font-weight:700;color:#64748b;margin-bottom:6px;padding:0 4px">👷 المشرفون والعهد</div>
+          <div class="tbl-wrap">
+            <table><thead><tr><th>المشرف</th><th>العهدة</th><th>الحالة</th></tr></thead>
+            <tbody id="dash-sups-tbl"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Admin: Violations & Deductions ===== -->
+    <section class="section" id="sec-admin-vios">
+      <div class="pg-head">
+        <div><div class="pg-title">المخالفات <em>والخصومات</em></div><div class="pg-sub">إدارة مخالفات وخصومات السائقين</div></div>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('admin-vios','tab-add-vio',this)">➕ إدخال مخالفة</button>
+        <button class="tab-btn" onclick="switchTab('admin-vios','tab-add-disc',this)">➖ إدخال خصم</button>
+        <button class="tab-btn" onclick="switchTab('admin-vios','tab-import',this)">📥 استيراد ملف</button>
+        <button class="tab-btn" onclick="switchTab('admin-vios','tab-balances',this)">💰 حسابات السائقين</button>
+      </div>
+
+      <!-- إدخال مخالفة -->
+      <div class="tab-content active" id="tab-add-vio">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-gavel"></i> إدراج مخالفة جديدة</div>
+          <div class="form-body">
+            <div class="form-grid">
+              <div class="fg"><label>التاريخ</label><input type="date" id="adm-vio-date"></div>
+              <div class="fg"><label>رقم السيارة</label><input type="text" id="adm-vio-car" placeholder="مثال: 5724"></div>
+              <div class="fg"><label>اسم السائق</label><input type="text" id="adm-vio-driver" placeholder="اسم السائق"></div>
+              <div class="fg"><label>المبلغ (جنيه)</label><input type="number" id="adm-vio-amount" placeholder="0" min="0"></div>
+              <div class="fg span2"><label>بيان المخالفة</label><input type="text" id="adm-vio-desc" placeholder="وصف المخالفة بالتفصيل"></div>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-red" onclick="adminInsertViolation()"><i class="fa-solid fa-plus"></i> إدراج المخالفة</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- إدخال خصم -->
+      <div class="tab-content" id="tab-add-disc">
+        <div class="form-card">
+          <div class="form-card-head" style="background:#16a34a"><i class="fa-solid fa-minus-circle"></i> إدخال خصم للسائق</div>
+          <div class="form-body">
+            <div class="form-grid">
+              <div class="fg"><label>التاريخ</label><input type="date" id="adm-disc-date"></div>
+              <div class="fg"><label>اسم السائق</label><input type="text" id="adm-disc-driver" placeholder="اسم السائق"></div>
+              <div class="fg"><label>سبب الخصم</label><input type="text" id="adm-disc-reason" placeholder="سبب الخصم"></div>
+              <div class="fg"><label>المبلغ (جنيه)</label><input type="number" id="adm-disc-amount" placeholder="0" min="0"></div>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-green" onclick="adminInsertDeduction()"><i class="fa-solid fa-plus"></i> إدراج الخصم</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- استيراد CSV/Excel -->
+      <div class="tab-content" id="tab-import">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-file-import"></i> استيراد / تصدير البيانات</div>
+          <div class="form-body" style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px;border:2px dashed #e2e8f0;border-radius:10px;padding:16px;text-align:center">
+              <i class="fa-solid fa-car" style="font-size:1.5rem;color:#2563eb;margin-bottom:6px;display:block"></i>
+              <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">استيراد سيارات</div>
+              <input type="file" id="csv-cars" accept=".csv,.xlsx,.xls" onchange="importCSV(event,'cars')" style="font-size:.72rem;width:100%">
+            </div>
+            <div style="flex:1;min-width:200px;border:2px dashed #e2e8f0;border-radius:10px;padding:16px;text-align:center">
+              <i class="fa-solid fa-gavel" style="font-size:1.5rem;color:#dc2626;margin-bottom:6px;display:block"></i>
+              <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">استيراد مخالفات</div>
+              <input type="file" id="csv-vios" accept=".csv,.xlsx,.xls" onchange="importCSV(event,'violations')" style="font-size:.72rem;width:100%">
+            </div>
+            <div style="flex:1;min-width:200px;border:2px dashed #e2e8f0;border-radius:10px;padding:16px;text-align:center">
+              <i class="fa-solid fa-minus-circle" style="font-size:1.5rem;color:#16a34a;margin-bottom:6px;display:block"></i>
+              <div style="font-size:.78rem;font-weight:700;margin-bottom:8px">استيراد خصومات</div>
+              <input type="file" id="csv-disc" accept=".csv,.xlsx,.xls" onchange="importCSV(event,'discounts')" style="font-size:.72rem;width:100%">
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-outline btn-sm" onclick="downloadTemplate('cars')"><i class="fa-solid fa-download"></i> قالب السيارات</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadTemplate('violations')"><i class="fa-solid fa-download"></i> قالب المخالفات</button>
+            <button class="btn btn-outline btn-sm" onclick="downloadTemplate('discounts')"><i class="fa-solid fa-download"></i> قالب الخصومات</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- حسابات السائقين -->
+      <div class="tab-content" id="tab-balances">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-calculator"></i> حسابات السائقين والخصومات</div>
+          <div class="search-bar" style="padding:12px 16px 0">
+            <input type="text" id="bal-search" placeholder="🔍 ابحث عن سائق..." oninput="renderAdminBalances()">
+          </div>
+          <div class="tbl-scroll">
+            <table><thead><tr><th>#</th><th>السائق</th><th>المخالفات</th><th>الخصومات</th><th>الصافي</th><th>إجراء</th></tr></thead>
+            <tbody id="adm-balances-tbl"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Admin: Cars & Drivers ===== -->
+    <section class="section" id="sec-admin-cars">
+      <div class="pg-head">
+        <div><div class="pg-title">السيارات <em>والسائقين</em></div><div class="pg-sub">إضافة وتعديل وحذف بيانات السيارات</div></div>
+      </div>
+      <div class="form-card" style="margin-bottom:16px">
+        <div class="form-card-head"><i class="fa-solid fa-car"></i> <span id="car-form-title">إضافة سيارة جديدة</span></div>
+        <div class="form-body">
+          <input type="hidden" id="adm-car-uid">
+          <div class="form-grid">
+            <div class="fg"><label>رقم السيارة *</label><input type="text" id="car-id" placeholder="رقم السيارة"></div>
+            <div class="fg"><label>رقم الشاسيه</label><input type="text" id="car-chassis" placeholder="رقم الشاسيه"></div>
+            <div class="fg"><label>رقم الموتور</label><input type="text" id="car-motor" placeholder="رقم الموتور"></div>
+            <div class="fg"><label>نوع السيارة</label><input type="text" id="car-type" placeholder="جامبو / نترنو / أوتوبيس..."></div>
+            <div class="fg"><label>الموديل</label><input type="text" id="car-model" placeholder="موديل السيارة"></div>
+            <div class="fg"><label>تاريخ انتهاء الترخيص *</label><input type="date" id="car-expiry"></div>
+            <div class="fg"><label>الشركة المالكة *</label><input type="text" id="car-company" placeholder="مصر للنوربات..."></div>
+            <div class="fg"><label>اسم السائق</label><input type="text" id="car-driver" placeholder="اسم السائق"></div>
+          </div>
+        </div>
+        <div class="form-footer">
+          <button class="btn btn-outline btn-sm" onclick="clearCarForm()"><i class="fa-solid fa-xmark"></i> مسح</button>
+          <button class="btn btn-blue" onclick="saveCarData()"><i class="fa-solid fa-save"></i> حفظ السيارة</button>
+        </div>
+      </div>
+      <div class="search-bar" style="margin-bottom:10px">
+        <input type="text" id="cars-search" placeholder="🔍 ابحث برقم السيارة أو السائق أو الشركة..." oninput="renderAdminCars()">
+      </div>
+      <div class="tbl-wrap">
+        <div class="tbl-scroll">
+          <table><thead><tr><th>#</th><th>رقم السيارة</th><th>الشركة</th><th>السائق</th><th>النوع</th><th>انتهاء الترخيص</th><th>الشاسيه</th><th>إجراءات</th></tr></thead>
+          <tbody id="adm-cars-tbl"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Admin: Licenses ===== -->
+    <section class="section" id="sec-admin-licenses">
+      <div class="pg-head">
+        <div><div class="pg-title">إدارة <em>التراخيص</em></div><div class="pg-sub">متابعة تواريخ انتهاء تراخيص السيارات</div></div>
+      </div>
+      <div class="stats-row" id="lic-stats"></div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="setLicFilter('all',this)">📋 الكل</button>
+        <button class="filter-tab" onclick="setLicFilter('منتهي',this)">❌ منتهية</button>
+        <button class="filter-tab" onclick="setLicFilter('ينتهي قريباً',this)">⚠️ تنتهي قريباً (30 يوم)</button>
+        <button class="filter-tab" onclick="setLicFilter('ساري',this)">✅ سارية</button>
+      </div>
+      <div class="lic-grid" id="lic-cards"></div>
+      <div id="lic-empty" class="empty-state" style="display:none">
+        <div class="empty-icon">🪪</div><div class="empty-txt">لا توجد بيانات تراخيص</div>
+      </div>
+    </section>
+
+    <!-- ===== Admin: Supervisors ===== -->
+    <section class="section" id="sec-admin-sups">
+      <div class="pg-head">
+        <div><div class="pg-title">المشرفون <em>والعهد</em></div><div class="pg-sub">إدارة المشرفين وعهدهم المالية</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:16px;align-items:start">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-user-plus"></i> <span id="sup-form-title">تعيين مشرف جديد</span></div>
+          <div class="form-body">
+            <input type="hidden" id="sup-uid">
+            <div class="fg" style="margin-bottom:8px"><label>اسم المشرف *</label><input type="text" id="sup-name" placeholder="الاسم بالكامل"></div>
+            <div class="fg" style="margin-bottom:8px"><label>اسم المستخدم *</label><input type="text" id="sup-username" placeholder="للدخول على النظام"></div>
+            <div class="fg" style="margin-bottom:8px"><label>كلمة المرور *</label><input type="password" id="sup-password" placeholder="كلمة المرور"></div>
+            <div class="fg" style="margin-bottom:12px"><label>العهدة المبدئية (جنيه)</label><input type="number" id="sup-custody" placeholder="0" min="0"></div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-outline btn-sm" onclick="clearSupForm()">مسح</button>
+            <button class="btn btn-blue" style="width:100%;justify-content:center" onclick="saveSupervisor()"><i class="fa-solid fa-save"></i> حفظ</button>
+          </div>
+        </div>
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-users"></i> قائمة المشرفين</div>
+          <div class="tbl-scroll">
+            <table><thead><tr><th>#</th><th>المشرف</th><th>المستخدم</th><th>العهدة</th><th>إجراءات</th></tr></thead>
+            <tbody id="adm-sups-tbl"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Admin: Security / Passwords ===== -->
+    <section class="section" id="sec-admin-security">
+      <div class="pg-head"><div><div class="pg-title">إدارة <em>كلمات المرور</em></div><div class="pg-sub">تحديث كلمات مرور المستخدمين والعهدة الرئيسية</div></div></div>
+      <div style="max-width:520px;margin:0 auto">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-lock"></i> تحديث كلمات المرور والعهدة</div>
+          <div class="form-body" style="display:flex;flex-direction:column;gap:14px">
+
+            <div style="border-bottom:1px solid #f1f5f9;padding-bottom:14px">
+              <div class="fg" style="margin-bottom:8px"><label>🔐 باسورد مدير النظام (admin)</label><input type="password" id="adm-pass-new" placeholder="الباسورد الجديد"></div>
+              <button class="btn btn-blue" style="width:100%" onclick="updatePass('adminPass','adm-pass-new')">تحديث باسورد الأدمن</button>
+            </div>
+
+            <div style="border-bottom:1px solid #f1f5f9;padding-bottom:14px">
+              <div class="fg" style="margin-bottom:8px"><label>🚦 باسورد مدير الحركة (traffic)</label><input type="password" id="traffic-pass-new" placeholder="الباسورد الجديد"></div>
+              <button class="btn btn-gold" style="width:100%" onclick="updatePass('trafficPass','traffic-pass-new')">تحديث باسورد مدير الحركة</button>
+            </div>
+
+            <div style="border-bottom:1px solid #f1f5f9;padding-bottom:14px">
+              <div class="fg" style="margin-bottom:8px"><label>💰 باسورد المدير المالي (finance)</label><input type="password" id="finance-pass-new" placeholder="الباسورد الجديد"></div>
+              <button class="btn btn-green" style="width:100%" onclick="updatePass('financePass','finance-pass-new')">تحديث باسورد المدير المالي</button>
+            </div>
+
+            <div style="border-bottom:1px solid #f1f5f9;padding-bottom:14px">
+              <div class="fg" style="margin-bottom:8px"><label>🧾 باسورد المشرف العام (manager)</label><input type="password" id="manager-pass-new" placeholder="الباسورد الجديد"></div>
+              <button class="btn btn-purple" style="width:100%" onclick="updatePass('managerPass','manager-pass-new')">تحديث باسورد المشرف العام</button>
+            </div>
+
+            <div>
+              <div class="fg" style="margin-bottom:8px"><label>💼 العهدة الرئيسية (جنيه)</label><input type="number" id="custody-amt-new" placeholder="مثال: 50000" min="0"></div>
+              <button class="btn btn-teal" style="width:100%" onclick="updateCustodyAmount()">تحديث العهدة الرئيسية</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Admin: Invoices Management ===== -->
+    <section class="section" id="sec-admin-invoices">
+      <div class="pg-head"><div><div class="pg-title">إدارة <em>الفواتير</em></div><div class="pg-sub">عرض جميع الفواتير وحذفها</div></div></div>
+      <div class="tbl-wrap">
+        <div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>السيارة</th><th>المشرف</th><th>الإجمالي</th><th>الحالة</th><th>إجراء</th></tr></thead>
+          <tbody id="adm-invoices-tbl"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Supervisor Screen ===== -->
+    <section class="section" id="sec-supervisor">
+      <div class="pg-head"><div><div class="pg-title">شاشة <em>المشرف</em></div></div></div>
+
+      <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:36px;height:36px;background:#16a34a;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem">👷</div>
+          <div><div style="font-size:.7rem;color:#64748b">المشرف الحالي</div><strong id="sup-identity" style="color:#166534"></strong></div>
+        </div>
+        <div style="text-align:left">
+          <div style="font-size:.7rem;color:#64748b">العهدة المتوفرة</div>
+          <strong id="sup-custody-lbl" style="font-size:1.3rem;color:#16a34a">0 ج</strong>
+        </div>
+      </div>
+
+      <div class="form-card" style="margin-bottom:16px">
+        <div class="form-card-head"><i class="fa-solid fa-file-invoice-dollar"></i> إنشاء فاتورة مصروف جديدة</div>
+        <div class="form-body">
+          <div class="form-grid">
+            <div class="fg"><label>التاريخ *</label><input type="date" id="exp-date"></div>
+            <div class="fg"><label>رقم السيارة *</label><input type="text" id="exp-car" placeholder="رقم السيارة"></div>
+            <div class="fg"><label>مكان الخدمة</label><input type="text" id="exp-place" placeholder="مكان الخدمة"></div>
+            <div class="fg"><label>بيان الترخيص</label><input type="text" id="exp-license-desc" placeholder="تجديد / فحص..."></div>
+            <div class="fg"><label>المبلغ الأول (جنيه) *</label><input type="number" id="exp-amount" placeholder="المبلغ" min="0"></div>
+            <div class="fg"><label>بيان البند الأول *</label><input type="text" id="exp-desc" placeholder="رسوم / فحص..."></div>
+          </div>
+        </div>
+        <div class="form-footer">
+          <button class="btn btn-blue" onclick="createInvoice()"><i class="fa-solid fa-plus"></i> فتح فاتورة جديدة</button>
+        </div>
+      </div>
+
+      <!-- الفاتورة النشطة -->
+      <div class="form-card" id="active-invoice-zone" style="display:none;margin-bottom:16px;border:2px solid #2563eb">
+        <div class="form-card-head" style="background:#1d4ed8">
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <span><i class="fa-solid fa-file-invoice"></i> فاتورة نشطة: <strong id="inv-active-id"></strong></span>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff" onclick="cancelInvoice()">✕ إلغاء</button>
+          </div>
+        </div>
+        <div class="form-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <div class="fg" style="flex:1;min-width:100px"><label>مبلغ البند (ج)</label><input type="number" id="sub-amount" placeholder="المبلغ" min="0"></div>
+            <div class="fg" style="flex:2;min-width:140px"><label>بيان البند</label><input type="text" id="sub-desc" placeholder="اكتب البيان..." onkeydown="if(event.key==='Enter')appendItem()"></div>
+            <button class="btn btn-blue btn-sm" style="align-self:flex-end" onclick="appendItem()"><i class="fa-solid fa-plus"></i> إضافة بند</button>
+          </div>
+          <div class="tbl-wrap">
+            <table><thead><tr><th>المبلغ</th><th>البيان</th><th>حذف</th></tr></thead>
+            <tbody id="inv-items-tbl"></tbody></table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1.5px solid #e2e8f0;flex-wrap:wrap;gap:8px">
+            <div style="font-weight:800;font-size:.95rem">الإجمالي: <span id="inv-total" style="color:#2563eb;font-size:1.2rem">0</span> جنيه</div>
+            <button class="btn btn-gold" onclick="submitInvoice()"><i class="fa-solid fa-paper-plane"></i> إرسال لاعتماد مدير الحركة</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- سجل الفواتير -->
+      <div class="form-card">
+        <div class="form-card-head"><i class="fa-solid fa-clock-rotate-left"></i> سجل فواتيري السابقة</div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>السيارة</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+          <tbody id="sup-inv-history-tbl"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Traffic Manager Screen ===== -->
+    <section class="section" id="sec-traffic">
+      <div class="pg-head">
+        <div><div class="pg-title">لوحة <em>مدير الحركة</em></div><div class="pg-sub">اعتماد أو رفض مصاريف المشرفين</div></div>
+        <button class="btn btn-outline btn-sm" onclick="loadAll()"><i class="fa-solid fa-sync"></i> تحديث</button>
+      </div>
+      <div class="tbl-wrap" style="margin-bottom:16px">
+        <div style="background:#fef3c7;padding:10px 16px;border-bottom:1px solid #fde68a;font-weight:700;font-size:.82rem;display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-clock"></i> فواتير في انتظار الاعتماد
+          <span class="badge" id="traffic-pending-count">0</span>
+        </div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>السيارة</th><th>المشرف</th><th>الإجمالي</th><th>التفاصيل</th><th>القرار</th></tr></thead>
+          <tbody id="traffic-pending-tbl"></tbody></table>
+        </div>
+        <div id="traffic-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">✅</div><div class="empty-txt">لا توجد فواتير معلقة — كل شيء مرتب!</div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <div style="background:#f8fafc;padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:.82rem"><i class="fa-solid fa-history"></i> سجل القرارات السابقة</div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>السيارة</th><th>المشرف</th><th>الإجمالي</th><th>الحالة</th></tr></thead>
+          <tbody id="traffic-history-tbl"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Finance Manager Screen ===== -->
+    <section class="section" id="sec-finance">
+      <div class="pg-head">
+        <div><div class="pg-title">لوحة <em>المدير المالي</em></div><div class="pg-sub">طباعة الفواتير المعتمدة والخصم من عهد المشرفين</div></div>
+        <button class="btn btn-outline btn-sm" onclick="loadAll()"><i class="fa-solid fa-sync"></i> تحديث</button>
+      </div>
+      <div class="tbl-wrap" style="margin-bottom:16px">
+        <div style="background:#dcfce7;padding:10px 16px;border-bottom:1px solid #bbf7d0;font-weight:700;font-size:.82rem;display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-check-double"></i> فواتير معتمدة — جاهزة للطباعة والخصم
+          <span class="badge" id="finance-approved-count" style="background:#16a34a">0</span>
+        </div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>السيارة</th><th>المشرف</th><th>التفاصيل</th><th>الإجمالي</th><th>إجراء</th></tr></thead>
+          <tbody id="finance-approved-tbl"></tbody></table>
+        </div>
+        <div id="finance-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">📦</div><div class="empty-txt">لا توجد فواتير معتمدة في الوقت الحالي</div>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <div style="background:#f8fafc;padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:.82rem"><i class="fa-solid fa-receipt"></i> سجل الفواتير المطبوعة والمنتهية</div>
+        <div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>السيارة</th><th>المشرف</th><th>الإجمالي</th><th>إعادة طباعة</th></tr></thead>
+          <tbody id="finance-history-tbl"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== General Expenses (Manager) ===== -->
+    <section class="section" id="sec-manager">
+      <div class="pg-head"><div><div class="pg-title">المصروفات <em>العامة</em></div><div class="pg-sub">إدارة المصروفات والمواد وبطاقات الدفع</div></div></div>
+      <div class="stats-row" id="mgr-stats"></div>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('manager','tab-mgr-exp',this)">➕ إضافة مصروف</button>
+        <button class="tab-btn" onclick="switchTab('manager','tab-mgr-assign',this)">🚗 تحميل على سيارة</button>
+        <button class="tab-btn" onclick="switchTab('manager','tab-mgr-stmt',this)">📊 كشف الحساب</button>
+        <button class="tab-btn" onclick="switchTab('manager','tab-mgr-cards',this)">💳 بطاقات الفيزا</button>
+      </div>
+
+      <!-- إضافة مصروف -->
+      <div class="tab-content active" id="tab-mgr-exp">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-plus-circle"></i> إضافة مصروف عام جديد</div>
+          <div class="form-body">
+            <div class="form-grid">
+              <div class="fg span2"><label>بيان المصروف *</label><input type="text" id="mgr-exp-desc" placeholder="وصف المصروف بالتفصيل..."></div>
+              <div class="fg"><label>التاريخ *</label><input type="date" id="mgr-exp-date"></div>
+              <div class="fg"><label>الكمية *</label><input type="number" id="mgr-exp-qty" placeholder="1" min="1" oninput="calcMgrTotal()"></div>
+              <div class="fg"><label>سعر الوحدة (جنيه) *</label><input type="number" id="mgr-exp-price" placeholder="0.00" min="0" oninput="calcMgrTotal()"></div>
+            </div>
+            <div style="margin:12px 0;padding:10px;background:#f8fafc;border-radius:8px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+              <label style="font-size:.78rem;font-weight:700">طريقة الدفع:</label>
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:.78rem"><input type="radio" name="pay-method" value="cash" checked onchange="toggleVisaSelect()"> 💵 نقدي</label>
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:.78rem"><input type="radio" name="pay-method" value="visa" onchange="toggleVisaSelect()"> 💳 فيزا</label>
+              <select id="mgr-visa-select" style="display:none;padding:6px 10px;border-radius:8px;font-size:.78rem;border:1.5px solid #e2e8f0;font-family:inherit"></select>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 16px">
+              <span style="font-size:.82rem;font-weight:700;color:#1e40af">الإجمالي:</span>
+              <span id="mgr-exp-total" style="font-size:1.4rem;font-weight:800;color:#1e3a8a">0</span>
+              <span style="font-size:.82rem;font-weight:700;color:#1e40af">جنيه</span>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-blue" onclick="addGeneralExpense()"><i class="fa-solid fa-save"></i> حفظ المصروف</button>
+          </div>
+        </div>
+        <div class="tbl-wrap" style="margin-top:12px">
+          <div class="tbl-scroll">
+            <table><thead><tr><th>التاريخ</th><th>البيان</th><th>الكمية</th><th>متبقي</th><th>سعر الوحدة</th><th>الإجمالي</th><th>طريقة الدفع</th><th>حذف</th></tr></thead>
+            <tbody id="mgr-exp-tbl"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- تحميل على سيارة -->
+      <div class="tab-content" id="tab-mgr-assign">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-car"></i> تحميل مصروف على سيارة</div>
+          <div class="form-body">
+            <div class="form-grid">
+              <div class="fg"><label>اختر المصروف *</label><select id="mgr-assign-exp" onchange="updateAssignAvail()"><option value="">-- اختر مصروف --</option></select></div>
+              <div class="fg"><label>رقم السيارة *</label><input type="text" id="mgr-assign-car" placeholder="رقم السيارة"></div>
+              <div class="fg"><label>الكمية المحملة *</label>
+                <input type="number" id="mgr-assign-qty" placeholder="1" min="1">
+                <div style="font-size:.7rem;color:#d97706;margin-top:2px;font-weight:700" id="mgr-assign-avail">متاح: —</div>
+              </div>
+              <div class="fg"><label>التاريخ *</label><input type="date" id="mgr-assign-date"></div>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-blue" onclick="assignToCar()"><i class="fa-solid fa-plus"></i> تحميل على السيارة</button>
+          </div>
+        </div>
+        <div class="tbl-wrap" style="margin-top:12px">
+          <div class="tbl-scroll">
+            <table><thead><tr><th>التاريخ</th><th>المصروف</th><th>السيارة</th><th>الكمية</th><th>المبلغ</th><th>حذف</th></tr></thead>
+            <tbody id="mgr-assign-tbl"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- كشف الحساب -->
+      <div class="tab-content" id="tab-mgr-stmt">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-file-invoice"></i> كشف حساب المصروفات</div>
+          <div class="form-body" id="mgr-stmt-content">
+            <div class="empty-state"><div class="empty-icon">📊</div><div class="empty-txt">اضغط على هذا التبويب لتحميل كشف الحساب</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- بطاقات الفيزا -->
+      <div class="tab-content" id="tab-mgr-cards">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-credit-card"></i> إدارة بطاقات الفيزا</div>
+          <div class="form-body">
+            <div class="form-grid">
+              <div class="fg"><label>اسم البطاقة / الجهة</label><input type="text" id="mgr-card-name" placeholder="مثال: بطاقة البنك الأهلي"></div>
+              <div class="fg"><label>آخر 4 أرقام</label><input type="text" id="mgr-card-last4" placeholder="1234" maxlength="4" pattern="\d{4}"></div>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-blue" onclick="addVisaCard()"><i class="fa-solid fa-plus"></i> إضافة البطاقة</button>
+          </div>
+          <div id="mgr-cards-list" style="padding:0 16px 16px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Settings: Firebase Backup/Restore/Migration ===== -->
+    <section class="section" id="sec-settings">
+      <div class="pg-head"><div><div class="pg-title">⚙️ إعدادات <em>النظام</em></div><div class="pg-sub">نسخ احتياطي واسترجاع واستيراد البيانات</div></div></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-download"></i> تصدير نسخة احتياطية</div>
+          <div class="form-body" style="text-align:center">
+            <i class="fa-solid fa-database" style="font-size:2.5rem;color:#2563eb;margin-bottom:10px;display:block"></i>
+            <p style="font-size:.8rem;color:#64748b;margin-bottom:14px">تحميل جميع البيانات كملف JSON محمي</p>
+            <button class="btn btn-blue" onclick="exportFirebaseBackup()"><i class="fa-solid fa-download"></i> تصدير backup.json</button>
+          </div>
+        </div>
+        <div class="form-card">
+          <div class="form-card-head"><i class="fa-solid fa-upload"></i> استرجاع نسخة احتياطية</div>
+          <div class="form-body" style="text-align:center">
+            <i class="fa-solid fa-cloud-upload-alt" style="font-size:2.5rem;color:#16a34a;margin-bottom:10px;display:block"></i>
+            <p style="font-size:.8rem;color:#64748b;margin-bottom:14px">⚠️ سيتم استبدال جميع البيانات الحالية</p>
+            <label class="btn btn-green" style="cursor:pointer">
+              <i class="fa-solid fa-upload"></i> استرجاع من ملف JSON
+              <input type="file" accept=".json" onchange="importFirebaseBackup(this)" style="display:none">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar"><span class="status-dot" id="status-dot"></span><span class="status-txt" id="status-txt">مستعد</span></div>
+
+      <div class="form-card">
+        <div class="form-card-head" style="background:#16a34a"><i class="fa-solid fa-rocket"></i> استيراد سريع — البيانات الأساسية</div>
+        <div class="form-body">
+          <div class="info-box">
+            <i class="fa-solid fa-info-circle"></i>
+            جميع البيانات الأساسية مضمنة في الكود مسبقاً: سائقين، سيارات، مخالفات، خصومات، تراخيص.
+          </div>
+          <div style="text-align:center">
+            <p style="font-size:.82rem;color:#166534;margin-bottom:12px">62+ سائق — 80+ سيارة — 95+ مخالفة — 70+ خصم — 80+ ترخيص</p>
+            <button class="btn btn-green" onclick="importAllPreloadedData()" style="font-size:.95rem;padding:12px 28px">
+              <i class="fa-solid fa-rocket"></i> استيراد البيانات الآن
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Reports ===== -->
+    <section class="section" id="sec-reports">
+      <div class="pg-head"><div><div class="pg-title">📊 التقارير <em>الشاملة</em></div><div class="pg-sub">تقارير المخالفات والسائقين والتراخيص والفواتير</div></div></div>
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('reports','tab-rep-vios',this)">🚨 المخالفات</button>
+        <button class="tab-btn" onclick="switchTab('reports','tab-rep-drivers',this)">👤 حساب السائقين</button>
+        <button class="tab-btn" onclick="switchTab('reports','tab-rep-licenses',this)">🪪 التراخيص</button>
+        <button class="tab-btn" onclick="switchTab('reports','tab-rep-invoices',this)">📋 سجل الفواتير</button>
+        <button class="tab-btn" onclick="switchTab('reports','tab-rep-statement',this)">📊 كشف مشرف</button>
+      </div>
+
+      <div class="tab-content active" id="tab-rep-vios">
+        <div class="search-bar" style="margin-bottom:10px">
+          <input type="text" id="rep-vios-search" placeholder="🔍 ابحث برقم السيارة أو اسم السائق..." oninput="renderReports()">
+        </div>
+        <div class="tbl-wrap"><div class="tbl-scroll">
+          <table><thead><tr><th>#</th><th>التاريخ</th><th>السيارة</th><th>السائق</th><th>البيان</th><th>المبلغ</th></tr></thead>
+          <tbody id="rep-vios-tbl"></tbody></table>
+        </div></div>
+      </div>
+
+      <div class="tab-content" id="tab-rep-drivers">
+        <div class="search-bar" style="margin-bottom:10px">
+          <input type="text" id="rep-drivers-search" placeholder="🔍 ابحث عن سائق..." oninput="renderReports()">
+        </div>
+        <div class="tbl-wrap"><div class="tbl-scroll">
+          <table><thead><tr><th>#</th><th>السائق</th><th>إجمالي المخالفات</th><th>إجمالي الخصومات</th><th>الصافي</th></tr></thead>
+          <tbody id="rep-drivers-tbl"></tbody></table>
+        </div></div>
+      </div>
+
+      <div class="tab-content" id="tab-rep-licenses">
+        <div class="tbl-wrap"><div class="tbl-scroll">
+          <table><thead><tr><th>#</th><th>رقم السيارة</th><th>الشركة</th><th>السائق</th><th>تاريخ الانتهاء</th><th>الأيام المتبقية</th></tr></thead>
+          <tbody id="rep-licenses-tbl"></tbody></table>
+        </div></div>
+      </div>
+
+      <div class="tab-content" id="tab-rep-invoices">
+        <div class="tbl-wrap"><div class="tbl-scroll">
+          <table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>السيارة</th><th>المشرف</th><th>الإجمالي</th><th>الحالة</th><th>طباعة</th></tr></thead>
+          <tbody id="rep-invoices-tbl"></tbody></table>
+        </div></div>
+      </div>
+
+      <div class="tab-content" id="tab-rep-statement">
+        <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="stmt-sup-select" onchange="renderStatement()" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;font-family:inherit">
+            <option value="">-- اختر المشرف --</option>
+          </select>
+          <span id="stmt-summary" style="font-size:.78rem;color:#64748b"></span>
+        </div>
+        <div class="tbl-wrap"><div class="tbl-scroll">
+          <table><thead><tr><th>التاريخ</th><th>رقم الفاتورة</th><th>السيارة</th><th>البيان</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+          <tbody id="rep-stmt-tbl"></tbody></table>
+        </div></div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ======================== Print Zone (A5) ======================== -->
+<div id="print-zone">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #7a5c1e;padding-bottom:10px;margin-bottom:10px">
+    <div>
+      <div style="font-size:1rem;font-weight:800;color:#7a5c1e;letter-spacing:.5px">EL BANNA GROUP</div>
+      <div style="font-size:.72rem;color:#666;margin-top:2px">شركة البنا جروب للخدمات اللوجستية</div>
+    </div>
+    <div style="text-align:left;font-size:.72rem;color:#666">
+      <div>رقم الوصل: <strong id="prt-inv-id" style="color:#1e3a8a"></strong></div>
+      <div>تاريخ الطباعة: <strong id="prt-date"></strong></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.75rem;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed #7a5c1e">
+    <div>التاريخ: <strong id="prt-inv-date"></strong></div>
+    <div>رقم المركبة: <strong id="prt-inv-car" style="color:#1e3a8a"></strong></div>
+    <div>مكان الخدمة: <strong id="prt-inv-place"></strong></div>
+    <div>بيان الترخيص: <strong id="prt-inv-license"></strong></div>
+    <div>المشرف المسؤول: <strong id="prt-inv-sup" style="color:#16a34a"></strong></div>
+  </div>
+  <table>
+    <thead style="background:#f5ead6">
+      <tr>
+        <th style="padding:5px 8px;text-align:right;border-bottom:2px solid #7a5c1e;font-size:.72rem">المبلغ (جنيه)</th>
+        <th style="padding:5px 8px;text-align:right;border-bottom:2px solid #7a5c1e;font-size:.72rem">البيان التفصيلي</th>
+      </tr>
+    </thead>
+    <tbody id="prt-items-tbl"></tbody>
+  </table>
+  <div style="background:#f5ead6;border:1.5px solid #7a5c1e;border-radius:6px;padding:8px 12px;font-weight:800;display:flex;justify-content:space-between;margin-top:8px">
+    <span style="font-size:.8rem">إجمالي المبلغ المصروف:</span>
+    <span style="color:#7a5c1e;font-size:.95rem" id="prt-total">0 جنيه مصري</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:32px;text-align:center;font-size:.68rem;font-weight:700">
+    <div style="border-top:1.5px solid #7a5c1e;padding-top:6px;color:#7a5c1e">مسئول التراخيص</div>
+    <div style="border-top:1.5px solid #7a5c1e;padding-top:6px;color:#7a5c1e">اعتماد مدير الحركة</div>
+    <div style="border-top:1.5px solid #7a5c1e;padding-top:6px;color:#7a5c1e">اعتماد المدير المالي</div>
+  </div>
+  <div class="close-print-btn" style="text-align:center;margin-top:16px">
+    <button onclick="window.print()" class="btn btn-gold" style="margin:4px"><i class="fa-solid fa-print"></i> طباعة</button>
+    <button onclick="closePrint()" class="btn btn-outline" style="margin:4px">✕ إغلاق</button>
+  </div>
+</div>
+
+<!-- ======================== Modals ======================== -->
+<!-- تفاصيل الفاتورة -->
+<div class="backdrop" id="modal-details">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modal-title">تفاصيل الفاتورة</span>
+      <button class="modal-x" onclick="closeModal('modal-details')">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-details')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- تأكيد الحذف -->
+<div class="backdrop" id="modal-confirm">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-head"><span class="modal-title">تأكيد الحذف</span><button class="modal-x" onclick="closeModal('modal-confirm')">×</button></div>
+    <div class="modal-body" style="text-align:center;padding:24px">
+      <div style="font-size:2.5rem;margin-bottom:10px">⚠️</div>
+      <div style="font-weight:800;font-size:.95rem;margin-bottom:6px">هل أنت متأكد من الحذف؟</div>
+      <div style="color:#64748b;font-size:.82rem">سيتم حذف هذا السجل نهائياً ولا يمكن التراجع.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-confirm')">إلغاء</button>
+      <button class="btn btn-red" onclick="confirmAction()"><i class="fa-solid fa-trash"></i> تأكيد الحذف</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase v9 Compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.1/firebase-database-compat.js"></script>
+<!-- XLSX for Excel Import/Export -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- App Logic -->
+<script src="app.js"></script>
+</body>
+</html>
